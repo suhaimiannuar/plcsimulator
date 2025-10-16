@@ -39,15 +39,6 @@
             border-radius: 4px;
             padding: 8px;
             margin-bottom: 6px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .pin-item:hover {
-            background-color: #4B5563;
-        }
-        .pin-item.selected {
-            border: 2px solid #3B82F6;
-            background-color: #1E3A8A;
         }
     </style>
 </head>
@@ -99,12 +90,38 @@
         const GRID_COLOR = '#374151';
         const WIRE_COLOR = '#9CA3AF';
         const COLS = 10;
-        const ROWS = 3;
+        const MIN_ROWS = 3;
+        let ROWS = MIN_ROWS;
         let CELL_WIDTH = 80;
         let CELL_HEIGHT = 80;
-        let currentTool = 'NO';
+        let currentTool = null;
         let selectedPin = null;
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+        
+        // Function to check if a row has any horizontal lines or components
+        function rowHasContent(row) {
+            if (row >= grid.length) return false;
+            return grid[row].some(cell => cell && (cell.type === 'HLINE' || cell.type === 'BOTH' || cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT'));
+        }
+        
+        // Function to adjust grid size dynamically
+        function adjustGridSize() {
+            // Check if we need to add a row (if bottom row has content, add one more row below it)
+            if (ROWS > 0 && rowHasContent(ROWS - 1)) {
+                ROWS++;
+                grid.push(Array(COLS).fill(null));
+            }
+            
+            // Remove empty rows from bottom (keep minimum MIN_ROWS)
+            while (ROWS > MIN_ROWS && !rowHasContent(ROWS - 1) && !rowHasContent(ROWS - 2)) {
+                ROWS--;
+                grid.pop();
+            }
+            
+            // Update canvas height
+            canvas.height = ROWS * 80;
+            drawLadder();
+        }
         
         // Define input and output pins
         const inputPins = [
@@ -140,49 +157,42 @@
                 btn.className = `tool-button p-3 text-sm font-semibold text-center ${tool.id === currentTool ? 'active' : ''}`;
                 btn.innerHTML = `<span class="text-2xl">${tool.icon}</span><br><span class="text-xs">${tool.label}</span>`;
                 btn.onclick = () => { 
-                    currentTool = tool.id;
-                    selectedPin = null; // Clear pin selection when tool is selected
+                    // Toggle tool selection - click again to deactivate
+                    if (currentTool === tool.id) {
+                        currentTool = null;
+                    } else {
+                        currentTool = tool.id;
+                        selectedPin = null; // Clear pin selection when tool is selected
+                        renderPins();
+                    }
                     renderToolbox();
-                    renderPins();
                 };
                 toolbox.appendChild(btn);
             });
         }
         
         function renderPins() {
-            // Render input pins
+            // Render input pins - non-clickable, just display
             inputPinsContainer.innerHTML = '';
             inputPins.forEach(pin => {
                 const pinDiv = document.createElement('div');
-                pinDiv.className = `pin-item ${selectedPin && selectedPin.id === pin.id ? 'selected' : ''}`;
+                pinDiv.className = 'pin-item cursor-default';
                 pinDiv.innerHTML = `
                     <div class="text-xs font-semibold text-green-300">${pin.address}</div>
                     <div class="text-xs text-gray-400">${pin.label}</div>
                 `;
-                pinDiv.onclick = () => {
-                    selectedPin = pin;
-                    currentTool = null; // Clear tool selection when pin is selected
-                    renderToolbox();
-                    renderPins();
-                };
                 inputPinsContainer.appendChild(pinDiv);
             });
             
-            // Render output pins
+            // Render output pins - non-clickable, just display
             outputPinsContainer.innerHTML = '';
             outputPins.forEach(pin => {
                 const pinDiv = document.createElement('div');
-                pinDiv.className = `pin-item ${selectedPin && selectedPin.id === pin.id ? 'selected' : ''}`;
+                pinDiv.className = 'pin-item cursor-default';
                 pinDiv.innerHTML = `
                     <div class="text-xs font-semibold text-amber-300">${pin.address}</div>
                     <div class="text-xs text-gray-400">${pin.label}</div>
                 `;
-                pinDiv.onclick = () => {
-                    selectedPin = pin;
-                    currentTool = null; // Clear tool selection when pin is selected
-                    renderToolbox();
-                    renderPins();
-                };
                 outputPinsContainer.appendChild(pinDiv);
             });
         }
@@ -200,39 +210,136 @@
             const coords = getGridCoords(event);
             if (!coords) return;
             const { row, col } = coords;
+            const existingCell = grid[row][col];
 
             if (currentTool === 'CLEAR') {
-                grid[row][col] = null;
+                // If cell has BOTH, ask which one to clear or clear all
+                if (existingCell && existingCell.type === 'BOTH') {
+                    // For now, just clear everything
+                    grid[row][col] = null;
+                } else {
+                    grid[row][col] = null;
+                }
+                adjustGridSize();
             } else if (currentTool === 'VLINE') {
-                grid[row][col] = { type: 'VLINE', address: null, label: '' };
+                // Allow VLINE to coexist with HLINE
+                if (existingCell && existingCell.type === 'HLINE') {
+                    grid[row][col] = { type: 'BOTH', address: null, label: '', hasVLine: true, hasHLine: true };
+                } else if (existingCell && existingCell.type === 'BOTH') {
+                    // Already has both, do nothing
+                } else {
+                    grid[row][col] = { type: 'VLINE', address: null, label: '' };
+                }
             } else if (currentTool === 'HLINE') {
-                grid[row][col] = { type: 'HLINE', address: null, label: '' };
+                // Allow HLINE to coexist with VLINE
+                if (existingCell && existingCell.type === 'VLINE') {
+                    grid[row][col] = { type: 'BOTH', address: null, label: '', hasVLine: true, hasHLine: true };
+                } else if (existingCell && existingCell.type === 'BOTH') {
+                    // Already has both, do nothing
+                } else {
+                    grid[row][col] = { type: 'HLINE', address: null, label: '' };
+                }
+                adjustGridSize();
             } else if (currentTool) {
                 // Tool selected - place component with default address
                 grid[row][col] = { type: currentTool, address: `${currentTool === 'OUT' ? 'O' : 'I'}:1/${col}`, label: currentTool };
-            } else if (selectedPin) {
-                // Pin selected - check if there's a component to assign to
-                const cell = grid[row][col];
-                if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
-                    // Assign pin to existing component
-                    cell.address = selectedPin.address;
-                    cell.label = selectedPin.label;
-                } else {
-                    // Place new component with pin assignment
-                    const isOutput = selectedPin.id.startsWith('O');
-                    const componentType = isOutput ? 'OUT' : 'NO';
-                    grid[row][col] = { 
-                        type: componentType, 
-                        address: selectedPin.address, 
-                        label: selectedPin.label 
-                    };
-                }
-                // Clear selection after assignment
-                selectedPin = null;
-                renderPins();
             }
             drawLadder();
         }
+        
+        function handleDoubleClick(event) {
+            const coords = getGridCoords(event);
+            if (!coords) return;
+            const { row, col } = coords;
+            const cell = grid[row][col];
+            
+            if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
+                // Show dropdown to assign pin
+                showPinDropdown(row, col, cell, event);
+            }
+        }
+        
+        function showPinDropdown(row, col, cell, event) {
+            const isOutput = cell.type === 'OUT';
+            // For outputs, only show output pins
+            // For NO/NC contacts, show both input and output pins (for feedback)
+            const allPins = isOutput ? outputPins : [...inputPins, ...outputPins];
+            
+            const dropdown = document.createElement('select');
+            dropdown.className = 'absolute bg-gray-700 text-white p-2 rounded shadow-lg';
+            dropdown.style.left = event.clientX + 'px';
+            dropdown.style.top = event.clientY + 'px';
+            dropdown.style.zIndex = '1000';
+            
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '-- Select Pin --';
+            dropdown.appendChild(defaultOption);
+            
+            // Add input pins section for contacts
+            if (!isOutput && inputPins.length > 0) {
+                const inputGroup = document.createElement('optgroup');
+                inputGroup.label = 'INPUTS';
+                inputPins.forEach(pin => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify(pin);
+                    option.textContent = `${pin.address} - ${pin.label}`;
+                    inputGroup.appendChild(option);
+                });
+                dropdown.appendChild(inputGroup);
+            }
+            
+            // Add output pins section
+            if (!isOutput && outputPins.length > 0) {
+                const outputGroup = document.createElement('optgroup');
+                outputGroup.label = 'OUTPUTS (Feedback)';
+                outputPins.forEach(pin => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify(pin);
+                    option.textContent = `${pin.address} - ${pin.label}`;
+                    outputGroup.appendChild(option);
+                });
+                dropdown.appendChild(outputGroup);
+            }
+            
+            // For output coils, just add output pins directly
+            if (isOutput) {
+                outputPins.forEach(pin => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify(pin);
+                    option.textContent = `${pin.address} - ${pin.label}`;
+                    if (cell.address === pin.address) {
+                        option.selected = true;
+                    }
+                    dropdown.appendChild(option);
+                });
+            }
+            
+            dropdown.onchange = (e) => {
+                const selectedValue = e.target.value;
+                if (selectedValue) {
+                    const selectedPin = JSON.parse(selectedValue);
+                    if (selectedPin) {
+                        grid[row][col].address = selectedPin.address;
+                        grid[row][col].label = selectedPin.label;
+                        drawLadder();
+                    }
+                }
+                document.body.removeChild(dropdown);
+            };
+            
+            dropdown.onblur = () => {
+                if (document.body.contains(dropdown)) {
+                    document.body.removeChild(dropdown);
+                }
+            };
+            
+            document.body.appendChild(dropdown);
+            dropdown.focus();
+        }
+        
+
 
         function drawLadder() {
             const w = canvas.width;
@@ -294,11 +401,11 @@
                     if (row === 0) {
                         // Main rung always has wire unless blocked by component
                         shouldDrawWire = true;
-                    } else if (cell && cell.type === 'HLINE') {
-                        // HLINE creates wire
+                    } else if (cell && (cell.type === 'HLINE' || cell.type === 'BOTH')) {
+                        // HLINE or BOTH creates wire
                         shouldDrawWire = true;
-                    } else if (nextCell && nextCell.type === 'HLINE') {
-                        // Next cell is HLINE, draw wire to connect
+                    } else if (nextCell && (nextCell.type === 'HLINE' || nextCell.type === 'BOTH')) {
+                        // Next cell is HLINE or BOTH, draw wire to connect
                         shouldDrawWire = true;
                     } else if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
                         // Component in branch needs connection wires on sides
@@ -309,8 +416,8 @@
                     }
                     
                     if (shouldDrawWire) {
-                        if (!cell || cell.type === 'HLINE' || cell.type === 'VLINE') {
-                            // Draw full wire segment if no component, HLINE, or VLINE
+                        if (!cell || cell.type === 'HLINE' || cell.type === 'VLINE' || cell.type === 'BOTH') {
+                            // Draw full wire segment if no component, HLINE, VLINE, or BOTH
                             ctx.beginPath();
                             ctx.moveTo(x, y);
                             ctx.lineTo(xNext, y);
@@ -361,6 +468,19 @@
                             ctx.stroke();
                         } else if (cell.type === 'HLINE') {
                             // Already drawn in wire section above
+                        } else if (cell.type === 'BOTH') {
+                            // Draw both vertical and horizontal lines
+                            ctx.strokeStyle = WIRE_COLOR;
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            if (row < ROWS - 1) {
+                                // Connect to row below
+                                const yBelow = ((row + 1) + 0.5) * CELL_HEIGHT;
+                                ctx.moveTo(x, y);
+                                ctx.lineTo(x, yBelow);
+                            }
+                            ctx.stroke();
+                            // Horizontal line is already drawn in wire section
                         } else {
                             // Draw component labels
                             if (cell.address) {
@@ -419,7 +539,16 @@
             renderPins();
             drawLadder();
             canvas.addEventListener('click', placeComponent);
+            canvas.addEventListener('dblclick', handleDoubleClick);
             window.addEventListener('resize', drawLadder);
+            
+            // ESC key handler to deactivate tool
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    currentTool = null;
+                    renderToolbox();
+                }
+            });
         };
     </script>
 </body>
