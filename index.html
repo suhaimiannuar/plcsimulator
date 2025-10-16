@@ -34,20 +34,54 @@
             box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
             transform: scale(1.05);
         }
+        .pin-item {
+            background-color: #374151;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .pin-item:hover {
+            background-color: #4B5563;
+        }
+        .pin-item.selected {
+            border: 2px solid #3B82F6;
+            background-color: #1E3A8A;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8 min-h-screen flex flex-col items-center">
-    <div class="w-full max-w-6xl">
+    <div class="w-full max-w-7xl">
         <header class="mb-6 text-center">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-1">Grid-Based Ladder Diagram Editor</h1>
             <p class="text-gray-400 text-sm sm:text-base">Single Rung with expandable branches. Use Vertical Line to create parallel paths.</p>
         </header>
 
+        <!-- Toolbox at top -->
+        <div class="bg-gray-800 p-4 rounded-xl shadow-2xl mb-6">
+            <h2 class="text-lg font-bold mb-3 text-gray-300 border-b border-gray-700 pb-2">Toolbox</h2>
+            <div id="toolbox" class="flex flex-wrap gap-3 justify-center"></div>
+        </div>
+
+        <!-- Main content area with pins panel on left -->
         <div class="flex flex-col lg:flex-row gap-6 mb-8">
-            <div class="bg-gray-800 p-4 rounded-xl shadow-2xl flex-shrink-0 lg:w-48">
-                <h2 class="text-xl font-bold mb-3 text-gray-300 border-b border-gray-700 pb-2">Toolbox</h2>
-                <div id="toolbox" class="grid grid-cols-3 gap-3 lg:grid-cols-1"></div>
+            <!-- Pins Panel on Left -->
+            <div class="bg-gray-800 p-4 rounded-xl shadow-2xl flex-shrink-0 lg:w-64">
+                <h2 class="text-lg font-bold mb-3 text-gray-300 border-b border-gray-700 pb-2">I/O Pins</h2>
+                
+                <div class="mb-4">
+                    <h3 class="text-sm font-semibold text-green-400 mb-2">INPUTS</h3>
+                    <div id="inputPins"></div>
+                </div>
+                
+                <div>
+                    <h3 class="text-sm font-semibold text-amber-400 mb-2">OUTPUTS</h3>
+                    <div id="outputPins"></div>
+                </div>
             </div>
+            
+            <!-- Canvas -->
             <div class="flex-grow">
                 <canvas id="ladderCanvas" class="w-full" width="1000" height="400"></canvas>
             </div>
@@ -58,6 +92,8 @@
         const canvas = document.getElementById('ladderCanvas');
         const ctx = canvas.getContext('2d');
         const toolbox = document.getElementById('toolbox');
+        const inputPinsContainer = document.getElementById('inputPins');
+        const outputPinsContainer = document.getElementById('outputPins');
 
         const RAIL_WIDTH = 40;
         const GRID_COLOR = '#374151';
@@ -67,7 +103,26 @@
         let CELL_WIDTH = 80;
         let CELL_HEIGHT = 80;
         let currentTool = 'NO';
+        let selectedPin = null;
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+        
+        // Define input and output pins
+        const inputPins = [
+            { id: 'I0', label: 'Input 0', address: 'I:0/0' },
+            { id: 'I1', label: 'Input 1', address: 'I:0/1' },
+            { id: 'I2', label: 'Input 2', address: 'I:0/2' },
+            { id: 'I3', label: 'Input 3', address: 'I:0/3' },
+            { id: 'I4', label: 'Input 4', address: 'I:0/4' },
+            { id: 'I5', label: 'Input 5', address: 'I:0/5' },
+        ];
+        
+        const outputPins = [
+            { id: 'O0', label: 'Output 0', address: 'O:0/0' },
+            { id: 'O1', label: 'Output 1', address: 'O:0/1' },
+            { id: 'O2', label: 'Output 2', address: 'O:0/2' },
+            { id: 'O3', label: 'Output 3', address: 'O:0/3' },
+            { id: 'O4', label: 'Output 4', address: 'O:0/4' },
+        ];
 
         const TOOLS = [
             { id: 'NO', label: 'NO Contact', icon: '| |' },
@@ -82,10 +137,53 @@
             toolbox.innerHTML = '';
             TOOLS.forEach(tool => {
                 const btn = document.createElement('button');
-                btn.className = `tool-button p-2 text-sm font-semibold text-center ${tool.id === currentTool ? 'active' : ''}`;
+                btn.className = `tool-button p-3 text-sm font-semibold text-center ${tool.id === currentTool ? 'active' : ''}`;
                 btn.innerHTML = `<span class="text-2xl">${tool.icon}</span><br><span class="text-xs">${tool.label}</span>`;
-                btn.onclick = () => { currentTool = tool.id; renderToolbox(); };
+                btn.onclick = () => { 
+                    currentTool = tool.id;
+                    selectedPin = null; // Clear pin selection when tool is selected
+                    renderToolbox();
+                    renderPins();
+                };
                 toolbox.appendChild(btn);
+            });
+        }
+        
+        function renderPins() {
+            // Render input pins
+            inputPinsContainer.innerHTML = '';
+            inputPins.forEach(pin => {
+                const pinDiv = document.createElement('div');
+                pinDiv.className = `pin-item ${selectedPin && selectedPin.id === pin.id ? 'selected' : ''}`;
+                pinDiv.innerHTML = `
+                    <div class="text-xs font-semibold text-green-300">${pin.address}</div>
+                    <div class="text-xs text-gray-400">${pin.label}</div>
+                `;
+                pinDiv.onclick = () => {
+                    selectedPin = pin;
+                    currentTool = null; // Clear tool selection when pin is selected
+                    renderToolbox();
+                    renderPins();
+                };
+                inputPinsContainer.appendChild(pinDiv);
+            });
+            
+            // Render output pins
+            outputPinsContainer.innerHTML = '';
+            outputPins.forEach(pin => {
+                const pinDiv = document.createElement('div');
+                pinDiv.className = `pin-item ${selectedPin && selectedPin.id === pin.id ? 'selected' : ''}`;
+                pinDiv.innerHTML = `
+                    <div class="text-xs font-semibold text-amber-300">${pin.address}</div>
+                    <div class="text-xs text-gray-400">${pin.label}</div>
+                `;
+                pinDiv.onclick = () => {
+                    selectedPin = pin;
+                    currentTool = null; // Clear tool selection when pin is selected
+                    renderToolbox();
+                    renderPins();
+                };
+                outputPinsContainer.appendChild(pinDiv);
             });
         }
 
@@ -109,8 +207,29 @@
                 grid[row][col] = { type: 'VLINE', address: null, label: '' };
             } else if (currentTool === 'HLINE') {
                 grid[row][col] = { type: 'HLINE', address: null, label: '' };
-            } else {
+            } else if (currentTool) {
+                // Tool selected - place component with default address
                 grid[row][col] = { type: currentTool, address: `${currentTool === 'OUT' ? 'O' : 'I'}:1/${col}`, label: currentTool };
+            } else if (selectedPin) {
+                // Pin selected - check if there's a component to assign to
+                const cell = grid[row][col];
+                if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
+                    // Assign pin to existing component
+                    cell.address = selectedPin.address;
+                    cell.label = selectedPin.label;
+                } else {
+                    // Place new component with pin assignment
+                    const isOutput = selectedPin.id.startsWith('O');
+                    const componentType = isOutput ? 'OUT' : 'NO';
+                    grid[row][col] = { 
+                        type: componentType, 
+                        address: selectedPin.address, 
+                        label: selectedPin.label 
+                    };
+                }
+                // Clear selection after assignment
+                selectedPin = null;
+                renderPins();
             }
             drawLadder();
         }
@@ -297,6 +416,7 @@
 
         window.onload = function() {
             renderToolbox();
+            renderPins();
             drawLadder();
             canvas.addEventListener('click', placeComponent);
             window.addEventListener('resize', drawLadder);
