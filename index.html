@@ -6,6 +6,8 @@
     <title>Grid-Based Ladder Diagram</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="items.js"></script>
+    <script src="simulation.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -40,6 +42,43 @@
             padding: 8px;
             margin-bottom: 6px;
         }
+        .pin-item.active {
+            background-color: #10B981;
+            border: 2px solid #34D399;
+            font-weight: bold;
+        }
+        .pin-item.output-active {
+            background-color: #F59E0B;
+            border: 2px solid #FBBF24;
+            font-weight: bold;
+        }
+        .sim-control-btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .sim-control-btn:hover {
+            transform: scale(1.05);
+        }
+        .sim-control-btn.start {
+            background-color: #10B981;
+            color: white;
+        }
+        .sim-control-btn.stop {
+            background-color: #EF4444;
+            color: white;
+        }
+        .sim-control-btn.pause {
+            background-color: #F59E0B;
+            color: white;
+        }
+        .sim-control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8 min-h-screen flex flex-col items-center">
@@ -49,10 +88,24 @@
             <p class="text-gray-400 text-sm sm:text-base">Single Rung with expandable branches. Use Vertical Line to create parallel paths.</p>
         </header>
 
-        <!-- Toolbox at top -->
+        <!-- Toolbox and Simulation Controls Combined -->
         <div class="bg-gray-800 p-4 rounded-xl shadow-2xl mb-6">
-            <h2 class="text-lg font-bold mb-3 text-gray-300 border-b border-gray-700 pb-2">Toolbox</h2>
-            <div id="toolbox" class="flex flex-wrap gap-3 justify-center"></div>
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Toolbox -->
+                <div class="flex-grow">
+                    <h2 class="text-lg font-bold mb-3 text-gray-300">Toolbox</h2>
+                    <div id="toolbox" class="flex flex-wrap gap-3 justify-center lg:justify-start"></div>
+                </div>
+                
+                <!-- Simulation Controls -->
+                <div class="flex-shrink-0 border-l border-gray-700 pl-6">
+                    <h2 class="text-lg font-bold mb-3 text-gray-300">Simulation</h2>
+                    <div class="flex flex-col gap-3">
+                        <button id="startStopBtn" class="sim-control-btn start px-6 py-2">▶ Start</button>
+                        <button id="resetBtn" class="sim-control-btn px-6 py-2" style="background-color: #6366F1; color: white;">🔄 Reset</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Main content area with pins panel on left -->
@@ -74,7 +127,7 @@
             
             <!-- Canvas -->
             <div class="flex-grow">
-                <canvas id="ladderCanvas" class="w-full" width="1000" height="400"></canvas>
+                <canvas id="ladderCanvas" class="w-full" width="1000" height="240"></canvas>
             </div>
         </div>
     </div>
@@ -97,6 +150,45 @@
         let currentTool = null;
         let selectedPin = null;
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+        
+        // Pins loaded from JSON
+        let inputPins = [];
+        let outputPins = [];
+        
+        // Load pins from JSON file
+        async function loadPins() {
+            try {
+                const response = await fetch('pins.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                inputPins = data.inputs;
+                outputPins = data.outputs;
+                console.log('Pins loaded successfully:', { inputs: inputPins.length, outputs: outputPins.length });
+                renderPins();
+            } catch (error) {
+                console.error('Error loading pins:', error);
+                alert('Failed to load pins.json. Make sure you are running this from a web server (not file://). Using default pins.');
+                // Fallback to default pins
+                inputPins = [
+                    { id: 'I0', label: 'Input 0', address: 'I:0/0' },
+                    { id: 'I1', label: 'Input 1', address: 'I:0/1' },
+                    { id: 'I2', label: 'Input 2', address: 'I:0/2' },
+                    { id: 'I3', label: 'Input 3', address: 'I:0/3' },
+                    { id: 'I4', label: 'Input 4', address: 'I:0/4' },
+                    { id: 'I5', label: 'Input 5', address: 'I:0/5' },
+                ];
+                outputPins = [
+                    { id: 'O0', label: 'Output 0', address: 'O:0/0' },
+                    { id: 'O1', label: 'Output 1', address: 'O:0/1' },
+                    { id: 'O2', label: 'Output 2', address: 'O:0/2' },
+                    { id: 'O3', label: 'Output 3', address: 'O:0/3' },
+                    { id: 'O4', label: 'Output 4', address: 'O:0/4' },
+                ];
+                renderPins();
+            }
+        }
         
         // Function to check if a row has any horizontal lines or components
         function rowHasContent(row) {
@@ -122,33 +214,16 @@
             canvas.height = ROWS * 80;
             drawLadder();
         }
-        
-        // Define input and output pins
-        const inputPins = [
-            { id: 'I0', label: 'Input 0', address: 'I:0/0' },
-            { id: 'I1', label: 'Input 1', address: 'I:0/1' },
-            { id: 'I2', label: 'Input 2', address: 'I:0/2' },
-            { id: 'I3', label: 'Input 3', address: 'I:0/3' },
-            { id: 'I4', label: 'Input 4', address: 'I:0/4' },
-            { id: 'I5', label: 'Input 5', address: 'I:0/5' },
-        ];
-        
-        const outputPins = [
-            { id: 'O0', label: 'Output 0', address: 'O:0/0' },
-            { id: 'O1', label: 'Output 1', address: 'O:0/1' },
-            { id: 'O2', label: 'Output 2', address: 'O:0/2' },
-            { id: 'O3', label: 'Output 3', address: 'O:0/3' },
-            { id: 'O4', label: 'Output 4', address: 'O:0/4' },
-        ];
 
-        const TOOLS = [
-            { id: 'NO', label: 'NO Contact', icon: '| |' },
-            { id: 'NC', label: 'NC Contact', icon: '|/|' },
-            { id: 'OUT', label: 'Output', icon: '( )' },
-            { id: 'HLINE', label: 'H-Line', icon: '─' },
-            { id: 'VLINE', label: 'V-Line', icon: '│' },
-            { id: 'CLEAR', label: 'Clear', icon: 'X' },
-        ];
+        // Build tools list from LadderItems
+        const TOOLS = Object.values(LadderItems).filter(item => 
+            item.category && (item.category === 'contact' || item.category === 'output' || 
+                              item.category === 'line' || item.category === 'tool')
+        ).filter(item => item.id !== 'BOTH').map(item => ({
+            id: item.id,
+            label: item.label,
+            icon: item.icon
+        }));
 
         function renderToolbox() {
             toolbox.innerHTML = '';
@@ -172,26 +247,46 @@
         }
         
         function renderPins() {
-            // Render input pins - non-clickable, just display
+            // Render input pins - clickable to toggle
             inputPinsContainer.innerHTML = '';
             inputPins.forEach(pin => {
                 const pinDiv = document.createElement('div');
-                pinDiv.className = 'pin-item cursor-default';
+                const isActive = plcSimulation && plcSimulation.getPinState(pin.address);
+                const isSimRunning = plcSimulation && plcSimulation.isRunning;
+                pinDiv.className = `pin-item ${isActive ? 'active' : ''} cursor-pointer`;
                 pinDiv.innerHTML = `
-                    <div class="text-xs font-semibold text-green-300">${pin.address}</div>
-                    <div class="text-xs text-gray-400">${pin.label}</div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-xs font-semibold text-green-300">${pin.address}</div>
+                            <div class="text-xs text-gray-400">${pin.label}</div>
+                        </div>
+                        <div class="text-lg ${isActive ? 'text-green-400' : 'text-gray-600'}">${isActive ? '●' : '○'}</div>
+                    </div>
                 `;
+                // Allow toggling inputs when simulation is running
+                pinDiv.onclick = () => {
+                    if (isSimRunning) {
+                        plcSimulation.toggleInput(pin.address);
+                        renderPins();
+                    }
+                };
                 inputPinsContainer.appendChild(pinDiv);
             });
             
-            // Render output pins - non-clickable, just display
+            // Render output pins - display state during simulation
             outputPinsContainer.innerHTML = '';
             outputPins.forEach(pin => {
                 const pinDiv = document.createElement('div');
-                pinDiv.className = 'pin-item cursor-default';
+                const isActive = plcSimulation && plcSimulation.getPinState(pin.address);
+                pinDiv.className = `pin-item ${isActive ? 'output-active' : ''} cursor-default`;
                 pinDiv.innerHTML = `
-                    <div class="text-xs font-semibold text-amber-300">${pin.address}</div>
-                    <div class="text-xs text-gray-400">${pin.label}</div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-xs font-semibold text-amber-300">${pin.address}</div>
+                            <div class="text-xs text-gray-400">${pin.label}</div>
+                        </div>
+                        <div class="text-lg ${isActive ? 'text-amber-400' : 'text-gray-600'}">${isActive ? '●' : '○'}</div>
+                    </div>
                 `;
                 outputPinsContainer.appendChild(pinDiv);
             });
@@ -343,9 +438,13 @@
 
         function drawLadder() {
             const w = canvas.width;
-            const h = canvas.height;
             CELL_WIDTH = (w - 2 * RAIL_WIDTH) / COLS;
-            CELL_HEIGHT = h / ROWS;
+            // Keep CELL_HEIGHT fixed, adjust canvas height based on ROWS
+            const newHeight = ROWS * CELL_HEIGHT;
+            if (canvas.height !== newHeight) {
+                canvas.height = newHeight;
+            }
+            const h = canvas.height;
 
             ctx.clearRect(0, 0, w, h);
             ctx.textAlign = 'center';
@@ -380,7 +479,6 @@
             }
 
             // Draw horizontal wires for each row (will be broken by components)
-            ctx.strokeStyle = WIRE_COLOR;
             ctx.lineWidth = 2;
             
             for (let row = 0; row < ROWS; row++) {
@@ -394,6 +492,21 @@
                     
                     // Check if this cell or adjacent cells need wire
                     const nextCell = col < COLS - 1 ? grid[row][col + 1] : null;
+                    
+                    // Check if wire is energized (during simulation)
+                    const isEnergized = plcSimulation && plcSimulation.isRunning && 
+                                       plcSimulation.isWireEnergized(row, col);
+                    
+                    // Set wire color based on energized state
+                    ctx.strokeStyle = isEnergized ? '#FCD34D' : WIRE_COLOR;
+                    if (isEnergized) {
+                        ctx.lineWidth = 3;
+                        ctx.shadowColor = '#FCD34D';
+                        ctx.shadowBlur = 10;
+                    } else {
+                        ctx.lineWidth = 2;
+                        ctx.shadowBlur = 0;
+                    }
                     
                     // Determine if we should draw wire in this segment
                     let shouldDrawWire = false;
@@ -442,85 +555,47 @@
                     }
                 }
             }
+            
+            // Reset shadow
+            ctx.shadowBlur = 0;
 
             // Components
             for (let row = 0; row < ROWS; row++) {
                 for (let col = 0; col < COLS; col++) {
                     const cell = grid[row][col];
-                    if (cell) {
+                    if (cell && cell.type) {
                         const x = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
                         const y = (row + 0.5) * CELL_HEIGHT;
-                        ctx.strokeStyle = WIRE_COLOR;
-                        ctx.lineWidth = 3;
-                        ctx.fillStyle = '#E5E7EB';
-
-                        if (cell.type === 'VLINE') {
-                            // Draw vertical line connecting to adjacent row
-                            ctx.strokeStyle = WIRE_COLOR;
-                            ctx.lineWidth = 3;
-                            ctx.beginPath();
-                            if (row < ROWS - 1) {
-                                // Connect to row below
-                                const yBelow = ((row + 1) + 0.5) * CELL_HEIGHT;
-                                ctx.moveTo(x, y);
-                                ctx.lineTo(x, yBelow);
-                            }
-                            ctx.stroke();
-                        } else if (cell.type === 'HLINE') {
-                            // Already drawn in wire section above
-                        } else if (cell.type === 'BOTH') {
-                            // Draw both vertical and horizontal lines
-                            ctx.strokeStyle = WIRE_COLOR;
-                            ctx.lineWidth = 3;
-                            ctx.beginPath();
-                            if (row < ROWS - 1) {
-                                // Connect to row below
-                                const yBelow = ((row + 1) + 0.5) * CELL_HEIGHT;
-                                ctx.moveTo(x, y);
-                                ctx.lineTo(x, yBelow);
-                            }
-                            ctx.stroke();
-                            // Horizontal line is already drawn in wire section
-                        } else {
-                            // Draw component labels
-                            if (cell.address) {
-                                ctx.font = '10px Inter';
-                                ctx.fillText(cell.address, x, y - 25);
-                            }
-                            ctx.font = '9px Inter';
-                            ctx.fillText(cell.label, x, y + 25);
-
-                            // Draw component symbol
-                            ctx.strokeStyle = WIRE_COLOR;
-                            ctx.lineWidth = 3;
+                        
+                        const itemDef = LadderItems[cell.type];
+                        if (itemDef && itemDef.draw) {
+                            // Use the item's draw function
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            itemDef.draw(ctx, x, y, row, ROWS, CELL_HEIGHT);
                             
-                            if (cell.type === 'NO') {
-                                ctx.beginPath();
-                                ctx.moveTo(x - 15, y - 12);
-                                ctx.lineTo(x - 15, y + 12);
-                                ctx.moveTo(x + 15, y - 12);
-                                ctx.lineTo(x + 15, y + 12);
-                                ctx.stroke();
-                            } else if (cell.type === 'NC') {
-                                ctx.beginPath();
-                                ctx.moveTo(x - 15, y - 12);
-                                ctx.lineTo(x - 15, y + 12);
-                                ctx.moveTo(x + 15, y - 12);
-                                ctx.lineTo(x + 15, y + 12);
-                                ctx.stroke();
-                                ctx.beginPath();
-                                ctx.moveTo(x - 12, y - 12);
-                                ctx.lineTo(x + 12, y + 12);
-                                ctx.stroke();
-                            } else if (cell.type === 'OUT') {
-                                ctx.beginPath();
-                                ctx.arc(x, y, 15, 0, 2 * Math.PI);
-                                ctx.stroke();
+                            // Draw labels if the item has them
+                            if (itemDef.drawLabels) {
+                                itemDef.drawLabels(ctx, x, y, cell);
                             }
                         }
                     }
                 }
             }
+
+            // Legacy drawing code removed - now using items.js
+            /*
+            // Old code kept for reference - can be deleted
+            if (cell.type === 'VLINE') {
+                // Now handled by items.js
+            } else if (cell.type === 'HLINE') {
+                // Already drawn in wire section above
+            } else if (cell.type === 'BOTH') {
+                // Now handled by items.js
+            } else {
+                // Now handled by items.js through drawLabels
+            }
+            */
 
             // Labels
             ctx.fillStyle = '#9CA3AF';
@@ -534,9 +609,45 @@
             ctx.fillText('Rung 1', 15, rungLabelY);
         }
 
-        window.onload = function() {
+        // Simulation control handlers
+        function setupSimulationControls() {
+            const startStopBtn = document.getElementById('startStopBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            
+            // Initialize simulation with pins
+            plcSimulation.initializePins(inputPins, outputPins);
+            
+            // Start/Stop button toggle
+            startStopBtn.onclick = () => {
+                if (plcSimulation.isRunning) {
+                    // Stop simulation
+                    plcSimulation.stop();
+                    startStopBtn.textContent = '▶ Start';
+                    startStopBtn.className = 'sim-control-btn start px-6 py-2';
+                } else {
+                    // Start simulation
+                    plcSimulation.start();
+                    startStopBtn.textContent = '⏹ Stop';
+                    startStopBtn.className = 'sim-control-btn stop px-6 py-2';
+                }
+                renderPins();
+                drawLadder();
+            };
+            
+            // Reset button
+            resetBtn.onclick = () => {
+                plcSimulation.reset();
+                startStopBtn.textContent = '▶ Start';
+                startStopBtn.className = 'sim-control-btn start px-6 py-2';
+                renderPins();
+                drawLadder();
+            };
+        }
+
+        window.onload = async function() {
             renderToolbox();
-            renderPins();
+            await loadPins(); // Load pins first, then render
+            setupSimulationControls(); // Setup simulation after pins are loaded
             drawLadder();
             canvas.addEventListener('click', placeComponent);
             canvas.addEventListener('dblclick', handleDoubleClick);

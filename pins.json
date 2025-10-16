@@ -1,0 +1,61 @@
+{
+  "inputs": [
+    {
+      "id": "I0",
+      "label": "Input 0",
+      "address": "I:0/0"
+    },
+    {
+      "id": "I1",
+      "label": "Input 1",
+      "address": "I:0/1"
+    },
+    {
+      "id": "I2",
+      "label": "Input 2",
+      "address": "I:0/2"
+    },
+    {
+      "id": "I3",
+      "label": "Input 3",
+      "address": "I:0/3"
+    },
+    {
+      "id": "I4",
+      "label": "Input 4",
+      "address": "I:0/4"
+    },
+    {
+      "id": "I5",
+      "label": "Input 5",
+      "address": "I:0/5"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "O0",
+      "label": "Output 0",
+      "address": "O:0/0"
+    },
+    {
+      "id": "O1",
+      "label": "Output 1",
+      "address": "O:0/1"
+    },
+    {
+      "id": "O2",
+      "label": "Output 2",
+      "address": "O:0/2"
+    },
+    {
+      "id": "O3",
+      "label": "Output 3",
+      "address": "O:0/3"
+    },
+    {
+      "id": "O4",
+      "label": "Output 4",
+      "address": "O:0/4"
+    }
+  ]
+}
