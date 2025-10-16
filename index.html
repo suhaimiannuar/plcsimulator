@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid-Based Ladder Diagram</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #E5E7EB;
+        }
+        #ladderCanvas {
+            border: 2px solid #374151;
+            background-color: #1F2937;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+        .tool-button {
+            background-color: #374151;
+            border-radius: 6px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+        .tool-button:hover:not(.active) {
+            background-color: #4B5563;
+        }
+        .tool-button.active {
+            border: 3px solid #3B82F6;
+            background-color: #1E3A8A;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen flex flex-col items-center">
+    <div class="w-full max-w-6xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-1">Grid-Based Ladder Diagram Editor</h1>
+            <p class="text-gray-400 text-sm sm:text-base">Single Rung with expandable branches. Use Vertical Line to create parallel paths.</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6 mb-8">
+            <div class="bg-gray-800 p-4 rounded-xl shadow-2xl flex-shrink-0 lg:w-48">
+                <h2 class="text-xl font-bold mb-3 text-gray-300 border-b border-gray-700 pb-2">Toolbox</h2>
+                <div id="toolbox" class="grid grid-cols-3 gap-3 lg:grid-cols-1"></div>
+            </div>
+            <div class="flex-grow">
+                <canvas id="ladderCanvas" class="w-full" width="1000" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('ladderCanvas');
+        const ctx = canvas.getContext('2d');
+        const toolbox = document.getElementById('toolbox');
+
+        const RAIL_WIDTH = 40;
+        const GRID_COLOR = '#374151';
+        const WIRE_COLOR = '#9CA3AF';
+        const COLS = 10;
+        const ROWS = 3;
+        let CELL_WIDTH = 80;
+        let CELL_HEIGHT = 80;
+        let currentTool = 'NO';
+        let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+
+        const TOOLS = [
+            { id: 'NO', label: 'NO Contact', icon: '| |' },
+            { id: 'NC', label: 'NC Contact', icon: '|/|' },
+            { id: 'OUT', label: 'Output', icon: '( )' },
+            { id: 'HLINE', label: 'H-Line', icon: '─' },
+            { id: 'VLINE', label: 'V-Line', icon: '│' },
+            { id: 'CLEAR', label: 'Clear', icon: 'X' },
+        ];
+
+        function renderToolbox() {
+            toolbox.innerHTML = '';
+            TOOLS.forEach(tool => {
+                const btn = document.createElement('button');
+                btn.className = `tool-button p-2 text-sm font-semibold text-center ${tool.id === currentTool ? 'active' : ''}`;
+                btn.innerHTML = `<span class="text-2xl">${tool.icon}</span><br><span class="text-xs">${tool.label}</span>`;
+                btn.onclick = () => { currentTool = tool.id; renderToolbox(); };
+                toolbox.appendChild(btn);
+            });
+        }
+
+        function getGridCoords(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const col = Math.floor((x - RAIL_WIDTH) / CELL_WIDTH);
+            const row = Math.floor(y / CELL_HEIGHT);
+            return (col >= 0 && col < COLS && row >= 0 && row < ROWS) ? { row, col } : null;
+        }
+
+        function placeComponent(event) {
+            const coords = getGridCoords(event);
+            if (!coords) return;
+            const { row, col } = coords;
+
+            if (currentTool === 'CLEAR') {
+                grid[row][col] = null;
+            } else if (currentTool === 'VLINE') {
+                grid[row][col] = { type: 'VLINE', address: null, label: '' };
+            } else if (currentTool === 'HLINE') {
+                grid[row][col] = { type: 'HLINE', address: null, label: '' };
+            } else {
+                grid[row][col] = { type: currentTool, address: `${currentTool === 'OUT' ? 'O' : 'I'}:1/${col}`, label: currentTool };
+            }
+            drawLadder();
+        }
+
+        function drawLadder() {
+            const w = canvas.width;
+            const h = canvas.height;
+            CELL_WIDTH = (w - 2 * RAIL_WIDTH) / COLS;
+            CELL_HEIGHT = h / ROWS;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Rails
+            ctx.strokeStyle = '#9CA3AF';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(RAIL_WIDTH, 0);
+            ctx.lineTo(RAIL_WIDTH, h);
+            ctx.moveTo(w - RAIL_WIDTH, 0);
+            ctx.lineTo(w - RAIL_WIDTH, h);
+            ctx.stroke();
+
+            // Grid
+            ctx.strokeStyle = GRID_COLOR;
+            ctx.lineWidth = 1;
+            for (let col = 0; col <= COLS; col++) {
+                const x = RAIL_WIDTH + col * CELL_WIDTH;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let row = 0; row <= ROWS; row++) {
+                const y = row * CELL_HEIGHT;
+                ctx.beginPath();
+                ctx.moveTo(RAIL_WIDTH, y);
+                ctx.lineTo(w - RAIL_WIDTH, y);
+                ctx.stroke();
+            }
+
+            // Draw horizontal wires for each row (will be broken by components)
+            ctx.strokeStyle = WIRE_COLOR;
+            ctx.lineWidth = 2;
+            
+            for (let row = 0; row < ROWS; row++) {
+                const y = (row + 0.5) * CELL_HEIGHT;
+                
+                // Draw wire segments between components
+                for (let col = 0; col < COLS; col++) {
+                    const cell = grid[row][col];
+                    const x = RAIL_WIDTH + col * CELL_WIDTH;
+                    const xNext = RAIL_WIDTH + (col + 1) * CELL_WIDTH;
+                    
+                    // Check if this cell or adjacent cells need wire
+                    const nextCell = col < COLS - 1 ? grid[row][col + 1] : null;
+                    
+                    // Determine if we should draw wire in this segment
+                    let shouldDrawWire = false;
+                    
+                    if (row === 0) {
+                        // Main rung always has wire unless blocked by component
+                        shouldDrawWire = true;
+                    } else if (cell && cell.type === 'HLINE') {
+                        // HLINE creates wire
+                        shouldDrawWire = true;
+                    } else if (nextCell && nextCell.type === 'HLINE') {
+                        // Next cell is HLINE, draw wire to connect
+                        shouldDrawWire = true;
+                    } else if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
+                        // Component in branch needs connection wires on sides
+                        shouldDrawWire = true;
+                    } else if (nextCell && (nextCell.type === 'NO' || nextCell.type === 'NC' || nextCell.type === 'OUT')) {
+                        // Next component needs connection wire
+                        shouldDrawWire = true;
+                    }
+                    
+                    if (shouldDrawWire) {
+                        if (!cell || cell.type === 'HLINE' || cell.type === 'VLINE') {
+                            // Draw full wire segment if no component, HLINE, or VLINE
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(xNext, y);
+                            ctx.stroke();
+                        } else if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
+                            // Draw wire segments on both sides of component
+                            const xCenter = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
+                            const componentRadius = 20; // Space around component
+                            
+                            // Left wire segment (extends to edge of cell)
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(xCenter - componentRadius, y);
+                            ctx.stroke();
+                            
+                            // Right wire segment (extends to edge of cell)
+                            ctx.beginPath();
+                            ctx.moveTo(xCenter + componentRadius, y);
+                            ctx.lineTo(xNext, y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // Components
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const cell = grid[row][col];
+                    if (cell) {
+                        const x = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
+                        const y = (row + 0.5) * CELL_HEIGHT;
+                        ctx.strokeStyle = WIRE_COLOR;
+                        ctx.lineWidth = 3;
+                        ctx.fillStyle = '#E5E7EB';
+
+                        if (cell.type === 'VLINE') {
+                            // Draw vertical line connecting to adjacent row
+                            ctx.strokeStyle = WIRE_COLOR;
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            if (row < ROWS - 1) {
+                                // Connect to row below
+                                const yBelow = ((row + 1) + 0.5) * CELL_HEIGHT;
+                                ctx.moveTo(x, y);
+                                ctx.lineTo(x, yBelow);
+                            }
+                            ctx.stroke();
+                        } else if (cell.type === 'HLINE') {
+                            // Already drawn in wire section above
+                        } else {
+                            // Draw component labels
+                            if (cell.address) {
+                                ctx.font = '10px Inter';
+                                ctx.fillText(cell.address, x, y - 25);
+                            }
+                            ctx.font = '9px Inter';
+                            ctx.fillText(cell.label, x, y + 25);
+
+                            // Draw component symbol
+                            ctx.strokeStyle = WIRE_COLOR;
+                            ctx.lineWidth = 3;
+                            
+                            if (cell.type === 'NO') {
+                                ctx.beginPath();
+                                ctx.moveTo(x - 15, y - 12);
+                                ctx.lineTo(x - 15, y + 12);
+                                ctx.moveTo(x + 15, y - 12);
+                                ctx.lineTo(x + 15, y + 12);
+                                ctx.stroke();
+                            } else if (cell.type === 'NC') {
+                                ctx.beginPath();
+                                ctx.moveTo(x - 15, y - 12);
+                                ctx.lineTo(x - 15, y + 12);
+                                ctx.moveTo(x + 15, y - 12);
+                                ctx.lineTo(x + 15, y + 12);
+                                ctx.stroke();
+                                ctx.beginPath();
+                                ctx.moveTo(x - 12, y - 12);
+                                ctx.lineTo(x + 12, y + 12);
+                                ctx.stroke();
+                            } else if (cell.type === 'OUT') {
+                                ctx.beginPath();
+                                ctx.arc(x, y, 15, 0, 2 * Math.PI);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Labels
+            ctx.fillStyle = '#9CA3AF';
+            ctx.font = '10px Inter';
+            for (let col = 0; col < COLS; col++) {
+                const x = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
+                ctx.fillText(col + 1, x, h - 10);
+            }
+            // Single rung label
+            const rungLabelY = (1) * CELL_HEIGHT;
+            ctx.fillText('Rung 1', 15, rungLabelY);
+        }
+
+        window.onload = function() {
+            renderToolbox();
+            drawLadder();
+            canvas.addEventListener('click', placeComponent);
+            window.addEventListener('resize', drawLadder);
+        };
+    </script>
+</body>
+</html>
