@@ -151,6 +151,13 @@
         let selectedPin = null;
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
         
+        // Expose grid and constants to window for simulation access
+        window.grid = grid;
+        window.ROWS = ROWS;
+        window.COLS = COLS;
+        window.RAIL_WIDTH = RAIL_WIDTH;
+        window.CELL_HEIGHT = CELL_HEIGHT;
+        
         // Pins loaded from JSON
         let inputPins = [];
         let outputPins = [];
@@ -202,12 +209,14 @@
             if (ROWS > 0 && rowHasContent(ROWS - 1)) {
                 ROWS++;
                 grid.push(Array(COLS).fill(null));
+                window.ROWS = ROWS;
             }
             
             // Remove empty rows from bottom (keep minimum MIN_ROWS)
             while (ROWS > MIN_ROWS && !rowHasContent(ROWS - 1) && !rowHasContent(ROWS - 2)) {
                 ROWS--;
                 grid.pop();
+                window.ROWS = ROWS;
             }
             
             // Update canvas height
@@ -569,10 +578,10 @@
                         
                         const itemDef = LadderItems[cell.type];
                         if (itemDef && itemDef.draw) {
-                            // Use the item's draw function
+                            // Use the item's draw function - pass row, col for simulation state
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            itemDef.draw(ctx, x, y, row, ROWS, CELL_HEIGHT);
+                            itemDef.draw(ctx, x, y, row, col, cell);
                             
                             // Draw labels if the item has them
                             if (itemDef.drawLabels) {

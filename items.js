@@ -8,15 +8,29 @@ const LadderItems = {
         label: 'NO Contact',
         icon: '| |',
         category: 'contact',
-        draw: function(ctx, x, y, cell) {
-            ctx.strokeStyle = '#9CA3AF';
+        draw: function(ctx, x, y, row, col, cell) {
+            // Check if component is active during simulation
+            const isActive = window.plcSimulation && window.plcSimulation.isRunning && 
+                            window.plcSimulation.isComponentActive(row, col);
+            
+            ctx.strokeStyle = isActive ? '#10B981' : '#9CA3AF'; // Green when active
             ctx.lineWidth = 3;
+            
+            if (isActive) {
+                ctx.shadowColor = '#10B981';
+                ctx.shadowBlur = 10;
+            }
+            
             ctx.beginPath();
             ctx.moveTo(x - 15, y - 12);
             ctx.lineTo(x - 15, y + 12);
             ctx.moveTo(x + 15, y - 12);
             ctx.lineTo(x + 15, y + 12);
             ctx.stroke();
+            
+            if (isActive) {
+                ctx.shadowBlur = 0;
+            }
         },
         drawLabels: function(ctx, x, y, cell) {
             ctx.fillStyle = '#E5E7EB';
@@ -42,9 +56,19 @@ const LadderItems = {
         label: 'NC Contact',
         icon: '|/|',
         category: 'contact',
-        draw: function(ctx, x, y, cell) {
-            ctx.strokeStyle = '#9CA3AF';
+        draw: function(ctx, x, y, row, col, cell) {
+            // Check if component is active during simulation
+            const isActive = window.plcSimulation && window.plcSimulation.isRunning && 
+                            window.plcSimulation.isComponentActive(row, col);
+            
+            ctx.strokeStyle = isActive ? '#10B981' : '#9CA3AF'; // Green when active
             ctx.lineWidth = 3;
+            
+            if (isActive) {
+                ctx.shadowColor = '#10B981';
+                ctx.shadowBlur = 10;
+            }
+            
             ctx.beginPath();
             ctx.moveTo(x - 15, y - 12);
             ctx.lineTo(x - 15, y + 12);
@@ -55,6 +79,10 @@ const LadderItems = {
             ctx.moveTo(x - 12, y - 12);
             ctx.lineTo(x + 12, y + 12);
             ctx.stroke();
+            
+            if (isActive) {
+                ctx.shadowBlur = 0;
+            }
         },
         drawLabels: function(ctx, x, y, cell) {
             ctx.fillStyle = '#E5E7EB';
@@ -80,12 +108,32 @@ const LadderItems = {
         label: 'Output',
         icon: '( )',
         category: 'output',
-        draw: function(ctx, x, y, cell) {
-            ctx.strokeStyle = '#9CA3AF';
+        draw: function(ctx, x, y, row, col, cell) {
+            // Check if component is active during simulation
+            const isActive = window.plcSimulation && window.plcSimulation.isRunning && 
+                            window.plcSimulation.isComponentActive(row, col);
+            
+            ctx.strokeStyle = isActive ? '#EF4444' : '#9CA3AF'; // Red when active
             ctx.lineWidth = 3;
+            
+            if (isActive) {
+                ctx.shadowColor = '#EF4444';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#EF4444';
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.arc(x, y, 15, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+            
             ctx.beginPath();
             ctx.arc(x, y, 15, 0, 2 * Math.PI);
             ctx.stroke();
+            
+            if (isActive) {
+                ctx.shadowBlur = 0;
+            }
         },
         drawLabels: function(ctx, x, y, cell) {
             ctx.fillStyle = '#E5E7EB';
@@ -124,10 +172,14 @@ const LadderItems = {
         label: 'V-Line',
         icon: '│',
         category: 'line',
-        draw: function(ctx, x, y, row, ROWS, CELL_HEIGHT) {
+        draw: function(ctx, x, y, row, col, cell) {
             ctx.strokeStyle = '#9CA3AF';
             ctx.lineWidth = 3;
             ctx.beginPath();
+            // Get ROWS and CELL_HEIGHT from window
+            const ROWS = window.ROWS || 3;
+            const CELL_HEIGHT = window.CELL_HEIGHT || 80;
+            
             if (row < ROWS - 1) {
                 // Connect to row below
                 const yBelow = ((row + 1) + 0.5) * CELL_HEIGHT;
@@ -145,11 +197,15 @@ const LadderItems = {
         label: 'H+V Line',
         icon: '┼',
         category: 'line',
-        draw: function(ctx, x, y, row, ROWS, CELL_HEIGHT) {
+        draw: function(ctx, x, y, row, col, cell) {
             // Draw vertical line
             ctx.strokeStyle = '#9CA3AF';
             ctx.lineWidth = 3;
             ctx.beginPath();
+            // Get ROWS and CELL_HEIGHT from window
+            const ROWS = window.ROWS || 3;
+            const CELL_HEIGHT = window.CELL_HEIGHT || 80;
+            
             if (row < ROWS - 1) {
                 const yBelow = ((row + 1) + 0.5) * CELL_HEIGHT;
                 ctx.moveTo(x, y);
