@@ -24,6 +24,15 @@ class LadderData {
                     parent_branch_id: null,
                     connection_col: null,
                     components: []
+                },
+                {
+                    id: 1,
+                    row: 1,
+                    start_col: 0,
+                    end_col: 9,
+                    parent_branch_id: 0,
+                    connection_col: 0,
+                    components: []
                 }
             ]
         };
