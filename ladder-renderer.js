@@ -52,16 +52,19 @@ class LadderRenderer {
     }
 
     drawRails() {
-        const { RAIL_WIDTH, WIRE_COLOR } = this.config;
+        const { RAIL_WIDTH, COLS, CELL_WIDTH, WIRE_COLOR } = this.config;
         const h = this.canvas.height;
+        const rightRailX = RAIL_WIDTH + COLS * CELL_WIDTH;
         
         this.ctx.strokeStyle = WIRE_COLOR;
         this.ctx.lineWidth = 4;
         this.ctx.beginPath();
+        // Left rail
         this.ctx.moveTo(RAIL_WIDTH, 0);
         this.ctx.lineTo(RAIL_WIDTH, h);
-        this.ctx.moveTo(this.canvas.width - RAIL_WIDTH, 0);
-        this.ctx.lineTo(this.canvas.width - RAIL_WIDTH, h);
+        // Right rail
+        this.ctx.moveTo(rightRailX, 0);
+        this.ctx.lineTo(rightRailX, h);
         this.ctx.stroke();
     }
 
@@ -86,9 +89,10 @@ class LadderRenderer {
         // Horizontal lines
         for (let row = 0; row <= maxRow + 1; row++) {
             const y = row * this.config.CELL_HEIGHT;
+            const rightRailX = RAIL_WIDTH + COLS * CELL_WIDTH;
             this.ctx.beginPath();
             this.ctx.moveTo(RAIL_WIDTH, y);
-            this.ctx.lineTo(this.canvas.width - RAIL_WIDTH, y);
+            this.ctx.lineTo(rightRailX, y);
             this.ctx.stroke();
         }
     }

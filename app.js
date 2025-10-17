@@ -170,7 +170,17 @@ function handleToolPlacement(row, col) {
             break;
             
         case 'CLEAR':
-            ladderData.removeComponent(row, col);
+            // If clicking on row > 0, remove the entire branch
+            if (row > 0) {
+                const branch = ladderData.getBranch(row);
+                if (branch) {
+                    ladderData.removeBranch(row);
+                    console.log(`Removed branch at row ${row}`);
+                }
+            } else {
+                // On main rung (row 0), just remove component
+                ladderData.removeComponent(row, col);
+            }
             break;
     }
     
