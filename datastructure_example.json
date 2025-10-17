@@ -1,0 +1,58 @@
+{
+  "rungs": [
+    {
+      "id": 0,
+      "branches": [
+        {
+          "id": 0,
+          "row": 0,
+          "start_col": 0,
+          "end_col": 9,
+          "parent_branch_id": null,
+          "connection_col": null,
+          "components": [
+            {
+              "type": "NO",
+              "address": "I:0/0",
+              "label": "Input 0",
+              "col": 1
+            },
+            {
+              "type": "NC",
+              "address": "I:0/1",
+              "label": "Input 1",
+              "col": 3
+            },
+            {
+              "type": "OUT",
+              "address": "O:0/0",
+              "label": "Output 0",
+              "col": 8
+            }
+          ]
+        },
+        {
+          "id": 1,
+          "row": 1,
+          "start_col": 1,
+          "end_col": 5,
+          "parent_branch_id": 0,
+          "connection_col": 1,
+          "components": [
+            {
+              "type": "NC",
+              "address": "O:0/0",
+              "label": "Output 0 (feedback)",
+              "col": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "description": "Ladder diagram data structure",
+    "grid_cols": 10,
+    "grid_rows": 3
+  }
+}

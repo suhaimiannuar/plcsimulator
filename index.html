@@ -6,8 +6,10 @@
     <title>Grid-Based Ladder Diagram</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="ladder-structure.js"></script>
     <script src="items.js"></script>
     <script src="simulation.js"></script>
+    <script src="simulation-new.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -149,9 +151,15 @@
         let CELL_HEIGHT = 80;
         let currentTool = null;
         let selectedPin = null;
+        
+        // NEW: Ladder structure instead of grid
+        const ladderStructure = new LadderStructure();
+        
+        // Keep grid for backward compatibility during transition
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
         
-        // Expose grid and constants to window for simulation access
+        // Expose to window for simulation access
+        window.ladderStructure = ladderStructure;
         window.grid = grid;
         window.ROWS = ROWS;
         window.COLS = COLS;
@@ -315,18 +323,20 @@
             if (!coords) return;
             const { row, col } = coords;
             const existingCell = grid[row][col];
+            const existingComponent = ladderStructure.getComponentAt(row, col);
 
             if (currentTool === 'CLEAR') {
-                // If cell has BOTH, ask which one to clear or clear all
+                // Remove from both grid and ladder structure
                 if (existingCell && existingCell.type === 'BOTH') {
-                    // For now, just clear everything
                     grid[row][col] = null;
                 } else {
                     grid[row][col] = null;
                 }
+                ladderStructure.removeComponent(row, col);
                 adjustGridSize();
             } else if (currentTool === 'VLINE') {
-                // Allow VLINE to coexist with HLINE
+                // VLINE creates a new branch or connection
+                // For now, keep grid-based approach for VLINE
                 if (existingCell && existingCell.type === 'HLINE') {
                     grid[row][col] = { type: 'BOTH', address: null, label: '', hasVLine: true, hasHLine: true };
                 } else if (existingCell && existingCell.type === 'BOTH') {
@@ -334,8 +344,10 @@
                 } else {
                     grid[row][col] = { type: 'VLINE', address: null, label: '' };
                 }
+                // TODO: Update ladder structure to reflect vertical connection
             } else if (currentTool === 'HLINE') {
-                // Allow HLINE to coexist with VLINE
+                // HLINE extends a branch
+                // For now, keep grid-based approach for HLINE
                 if (existingCell && existingCell.type === 'VLINE') {
                     grid[row][col] = { type: 'BOTH', address: null, label: '', hasVLine: true, hasHLine: true };
                 } else if (existingCell && existingCell.type === 'BOTH') {
@@ -344,9 +356,17 @@
                     grid[row][col] = { type: 'HLINE', address: null, label: '' };
                 }
                 adjustGridSize();
+                // TODO: Update ladder structure to extend branch
             } else if (currentTool) {
-                // Tool selected - place component with default address
-                grid[row][col] = { type: currentTool, address: `${currentTool === 'OUT' ? 'O' : 'I'}:1/${col}`, label: currentTool };
+                // Place component - update BOTH grid and ladder structure
+                const defaultAddress = `${currentTool === 'OUT' ? 'O' : 'I'}:1/${col}`;
+                const defaultLabel = currentTool;
+                
+                // Update grid (legacy)
+                grid[row][col] = { type: currentTool, address: defaultAddress, label: defaultLabel };
+                
+                // Update ladder structure (new)
+                ladderStructure.addComponent(row, col, currentTool, defaultAddress, defaultLabel);
             }
             drawLadder();
         }
@@ -425,8 +445,17 @@
                 if (selectedValue) {
                     const selectedPin = JSON.parse(selectedValue);
                     if (selectedPin) {
+                        // Update grid (legacy)
                         grid[row][col].address = selectedPin.address;
                         grid[row][col].label = selectedPin.label;
+                        
+                        // Update ladder structure (new)
+                        const component = ladderStructure.getComponentAt(row, col);
+                        if (component) {
+                            component.address = selectedPin.address;
+                            component.label = selectedPin.label;
+                        }
+                        
                         drawLadder();
                     }
                 }
