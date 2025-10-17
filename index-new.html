@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLC Ladder Simulator - Clean Version</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .tool-btn {
+            transition: all 0.2s;
+        }
+        .tool-btn:hover {
+            transform: scale(1.05);
+        }
+        .tool-btn.active {
+            border: 2px solid #3b82f6;
+            background-color: #1e3a8a;
+        }
+        .pin-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pin-item:hover {
+            background-color: #334155;
+        }
+        .pin-item.on {
+            background-color: #166534;
+            border-left: 4px solid #22c55e;
+        }
+        .pin-item.output-on {
+            background-color: #7c2d12;
+            border-left: 4px solid #f97316;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-blue-400 mb-2">PLC Ladder Diagram Simulator</h1>
+            <p class="text-gray-400">Clean, structured ladder logic editor with real-time simulation</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="bg-slate-800 rounded-lg p-6 mb-6">
+            <div class="flex justify-between items-center">
+                <!-- Toolbox -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3">COMPONENTS</h3>
+                    <div id="toolbox" class="flex gap-3"></div>
+                </div>
+                
+                <!-- Simulation -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3">SIMULATION</h3>
+                    <div class="flex gap-3">
+                        <button id="startStopBtn" class="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold">
+                            ▶ Start
+                        </button>
+                        <button id="resetBtn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex gap-6">
+            <!-- I/O Pins -->
+            <div class="w-64 bg-slate-800 rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4">I/O Pins</h3>
+                
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-green-400 mb-2">INPUTS</h4>
+                    <div id="inputPins" class="space-y-2"></div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-semibold text-orange-400 mb-2">OUTPUTS</h4>
+                    <div id="outputPins" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Canvas -->
+            <div class="flex-1">
+                <canvas id="canvas" class="bg-slate-900 rounded-lg" width="900" height="600"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="ladder-data.js"></script>
+    <script src="ladder-renderer.js"></script>
+    <script src="ladder-simulator.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
