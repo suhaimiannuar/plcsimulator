@@ -31,6 +31,15 @@ class LadderRenderer {
     }
 
     draw() {
+        // Adjust canvas height based on number of branches
+        const branches = this.ladderData.getAllBranches();
+        const maxRow = Math.max(...branches.map(b => b.row));
+        const requiredHeight = (maxRow + 2) * this.config.CELL_HEIGHT;
+        
+        if (this.canvas.height < requiredHeight) {
+            this.canvas.height = requiredHeight;
+        }
+        
         this.clear();
         this.drawRails();
         this.drawGrid();

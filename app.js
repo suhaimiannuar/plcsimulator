@@ -154,10 +154,15 @@ function handleToolPlacement(row, col) {
             break;
             
         case 'VLINE':
-            // Add a new branch if it doesn't exist
-            if (row > 0) {
-                ladderData.addBranch(row, 0, 9, col);
-            }
+            // Create a new branch connected at this column
+            // Find the next available row
+            const branches = ladderData.getAllBranches();
+            const maxRow = Math.max(...branches.map(b => b.row));
+            const newRow = maxRow + 1;
+            
+            // Add new branch
+            ladderData.addBranch(newRow, 0, 9, col);
+            console.log(`Created new branch at row ${newRow}, connected at column ${col}`);
             break;
             
         case 'HLINE':

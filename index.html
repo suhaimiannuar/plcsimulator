@@ -3,673 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grid-Based Ladder Diagram</title>
+    <title>PLC Ladder Simulator - Clean Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <script src="items.js"></script>
-    <script src="simulation.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #111827;
-            color: #E5E7EB;
+            background-color: #0f172a;
+            color: #e2e8f0;
         }
-        #ladderCanvas {
-            border: 2px solid #374151;
-            background-color: #1F2937;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        .tool-btn {
+            transition: all 0.2s;
         }
-        .tool-button {
-            background-color: #374151;
-            border-radius: 6px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
-        .tool-button:hover:not(.active) {
-            background-color: #4B5563;
-        }
-        .tool-button.active {
-            border: 3px solid #3B82F6;
-            background-color: #1E3A8A;
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        .tool-btn:hover {
             transform: scale(1.05);
+        }
+        .tool-btn.active {
+            border: 2px solid #3b82f6;
+            background-color: #1e3a8a;
         }
         .pin-item {
-            background-color: #374151;
-            border-radius: 4px;
-            padding: 8px;
-            margin-bottom: 6px;
-        }
-        .pin-item.active {
-            background-color: #10B981;
-            border: 2px solid #34D399;
-            font-weight: bold;
-        }
-        .pin-item.output-active {
-            background-color: #F59E0B;
-            border: 2px solid #FBBF24;
-            font-weight: bold;
-        }
-        .sim-control-btn {
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 600;
-            transition: all 0.15s ease;
             cursor: pointer;
-            border: none;
+            transition: all 0.2s;
         }
-        .sim-control-btn:hover {
-            transform: scale(1.05);
+        .pin-item:hover {
+            background-color: #334155;
         }
-        .sim-control-btn.start {
-            background-color: #10B981;
-            color: white;
+        .pin-item.on {
+            background-color: #166534;
+            border-left: 4px solid #22c55e;
         }
-        .sim-control-btn.stop {
-            background-color: #EF4444;
-            color: white;
-        }
-        .sim-control-btn.pause {
-            background-color: #F59E0B;
-            color: white;
-        }
-        .sim-control-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .pin-item.output-on {
+            background-color: #7c2d12;
+            border-left: 4px solid #f97316;
         }
     </style>
 </head>
-<body class="p-4 sm:p-8 min-h-screen flex flex-col items-center">
-    <div class="w-full max-w-7xl">
-        <header class="mb-6 text-center">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-1">Grid-Based Ladder Diagram Editor</h1>
-            <p class="text-gray-400 text-sm sm:text-base">Single Rung with expandable branches. Use Vertical Line to create parallel paths.</p>
+<body class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-blue-400 mb-2">PLC Ladder Diagram Simulator</h1>
+            <p class="text-gray-400">Clean, structured ladder logic editor with real-time simulation</p>
         </header>
 
-        <!-- Toolbox and Simulation Controls Combined -->
-        <div class="bg-gray-800 p-4 rounded-xl shadow-2xl mb-6">
-            <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Controls -->
+        <div class="bg-slate-800 rounded-lg p-6 mb-6">
+            <div class="flex justify-between items-center">
                 <!-- Toolbox -->
-                <div class="flex-grow">
-                    <h2 class="text-lg font-bold mb-3 text-gray-300">Toolbox</h2>
-                    <div id="toolbox" class="flex flex-wrap gap-3 justify-center lg:justify-start"></div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3">COMPONENTS</h3>
+                    <div id="toolbox" class="flex gap-3"></div>
                 </div>
                 
-                <!-- Simulation Controls -->
-                <div class="flex-shrink-0 border-l border-gray-700 pl-6">
-                    <h2 class="text-lg font-bold mb-3 text-gray-300">Simulation</h2>
-                    <div class="flex flex-col gap-3">
-                        <button id="startStopBtn" class="sim-control-btn start px-6 py-2">▶ Start</button>
-                        <button id="resetBtn" class="sim-control-btn px-6 py-2" style="background-color: #6366F1; color: white;">🔄 Reset</button>
+                <!-- Simulation -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3">SIMULATION</h3>
+                    <div class="flex gap-3">
+                        <button id="startStopBtn" class="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold">
+                            ▶ Start
+                        </button>
+                        <button id="resetBtn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold">
+                            🔄 Reset
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main content area with pins panel on left -->
-        <div class="flex flex-col lg:flex-row gap-6 mb-8">
-            <!-- Pins Panel on Left -->
-            <div class="bg-gray-800 p-4 rounded-xl shadow-2xl flex-shrink-0 lg:w-64">
-                <h2 class="text-lg font-bold mb-3 text-gray-300 border-b border-gray-700 pb-2">I/O Pins</h2>
+        <!-- Main Content -->
+        <div class="flex gap-6">
+            <!-- I/O Pins -->
+            <div class="w-64 bg-slate-800 rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4">I/O Pins</h3>
                 
-                <div class="mb-4">
-                    <h3 class="text-sm font-semibold text-green-400 mb-2">INPUTS</h3>
-                    <div id="inputPins"></div>
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-green-400 mb-2">INPUTS</h4>
+                    <div id="inputPins" class="space-y-2"></div>
                 </div>
                 
                 <div>
-                    <h3 class="text-sm font-semibold text-amber-400 mb-2">OUTPUTS</h3>
-                    <div id="outputPins"></div>
+                    <h4 class="text-sm font-semibold text-orange-400 mb-2">OUTPUTS</h4>
+                    <div id="outputPins" class="space-y-2"></div>
                 </div>
             </div>
-            
+
             <!-- Canvas -->
-            <div class="flex-grow">
-                <canvas id="ladderCanvas" class="w-full" width="1000" height="240"></canvas>
+            <div class="flex-1">
+                <canvas id="canvas" class="bg-slate-900 rounded-lg" width="900" height="600"></canvas>
             </div>
         </div>
     </div>
 
-    <script>
-        const canvas = document.getElementById('ladderCanvas');
-        const ctx = canvas.getContext('2d');
-        const toolbox = document.getElementById('toolbox');
-        const inputPinsContainer = document.getElementById('inputPins');
-        const outputPinsContainer = document.getElementById('outputPins');
-
-        const RAIL_WIDTH = 40;
-        const GRID_COLOR = '#374151';
-        const WIRE_COLOR = '#9CA3AF';
-        const COLS = 10;
-        const MIN_ROWS = 3;
-        let ROWS = MIN_ROWS;
-        let CELL_WIDTH = 80;
-        let CELL_HEIGHT = 80;
-        let currentTool = null;
-        let selectedPin = null;
-        let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-        
-        // Expose grid and constants to window for simulation access
-        window.grid = grid;
-        window.ROWS = ROWS;
-        window.COLS = COLS;
-        window.RAIL_WIDTH = RAIL_WIDTH;
-        window.CELL_HEIGHT = CELL_HEIGHT;
-        
-        // Pins loaded from JSON
-        let inputPins = [];
-        let outputPins = [];
-        
-        // Load pins from JSON file
-        async function loadPins() {
-            try {
-                const response = await fetch('pins.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                inputPins = data.inputs;
-                outputPins = data.outputs;
-                console.log('Pins loaded successfully:', { inputs: inputPins.length, outputs: outputPins.length });
-                renderPins();
-            } catch (error) {
-                console.error('Error loading pins:', error);
-                alert('Failed to load pins.json. Make sure you are running this from a web server (not file://). Using default pins.');
-                // Fallback to default pins
-                inputPins = [
-                    { id: 'I0', label: 'Input 0', address: 'I:0/0' },
-                    { id: 'I1', label: 'Input 1', address: 'I:0/1' },
-                    { id: 'I2', label: 'Input 2', address: 'I:0/2' },
-                    { id: 'I3', label: 'Input 3', address: 'I:0/3' },
-                    { id: 'I4', label: 'Input 4', address: 'I:0/4' },
-                    { id: 'I5', label: 'Input 5', address: 'I:0/5' },
-                ];
-                outputPins = [
-                    { id: 'O0', label: 'Output 0', address: 'O:0/0' },
-                    { id: 'O1', label: 'Output 1', address: 'O:0/1' },
-                    { id: 'O2', label: 'Output 2', address: 'O:0/2' },
-                    { id: 'O3', label: 'Output 3', address: 'O:0/3' },
-                    { id: 'O4', label: 'Output 4', address: 'O:0/4' },
-                ];
-                renderPins();
-            }
-        }
-        
-        // Function to check if a row has any horizontal lines or components
-        function rowHasContent(row) {
-            if (row >= grid.length) return false;
-            return grid[row].some(cell => cell && (cell.type === 'HLINE' || cell.type === 'BOTH' || cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT'));
-        }
-        
-        // Function to adjust grid size dynamically
-        function adjustGridSize() {
-            // Check if we need to add a row (if bottom row has content, add one more row below it)
-            if (ROWS > 0 && rowHasContent(ROWS - 1)) {
-                ROWS++;
-                grid.push(Array(COLS).fill(null));
-                window.ROWS = ROWS;
-            }
-            
-            // Remove empty rows from bottom (keep minimum MIN_ROWS)
-            while (ROWS > MIN_ROWS && !rowHasContent(ROWS - 1) && !rowHasContent(ROWS - 2)) {
-                ROWS--;
-                grid.pop();
-                window.ROWS = ROWS;
-            }
-            
-            // Update canvas height
-            canvas.height = ROWS * 80;
-            drawLadder();
-        }
-
-        // Build tools list from LadderItems
-        const TOOLS = Object.values(LadderItems).filter(item => 
-            item.category && (item.category === 'contact' || item.category === 'output' || 
-                              item.category === 'line' || item.category === 'tool')
-        ).filter(item => item.id !== 'BOTH').map(item => ({
-            id: item.id,
-            label: item.label,
-            icon: item.icon
-        }));
-
-        function renderToolbox() {
-            toolbox.innerHTML = '';
-            TOOLS.forEach(tool => {
-                const btn = document.createElement('button');
-                btn.className = `tool-button p-3 text-sm font-semibold text-center ${tool.id === currentTool ? 'active' : ''}`;
-                btn.innerHTML = `<span class="text-2xl">${tool.icon}</span><br><span class="text-xs">${tool.label}</span>`;
-                btn.onclick = () => { 
-                    // Toggle tool selection - click again to deactivate
-                    if (currentTool === tool.id) {
-                        currentTool = null;
-                    } else {
-                        currentTool = tool.id;
-                        selectedPin = null; // Clear pin selection when tool is selected
-                        renderPins();
-                    }
-                    renderToolbox();
-                };
-                toolbox.appendChild(btn);
-            });
-        }
-        
-        function renderPins() {
-            // Render input pins - clickable to toggle
-            inputPinsContainer.innerHTML = '';
-            inputPins.forEach(pin => {
-                const pinDiv = document.createElement('div');
-                const isActive = plcSimulation && plcSimulation.getPinState(pin.address);
-                const isSimRunning = plcSimulation && plcSimulation.isRunning;
-                pinDiv.className = `pin-item ${isActive ? 'active' : ''} cursor-pointer`;
-                pinDiv.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <div class="text-xs font-semibold text-green-300">${pin.address}</div>
-                            <div class="text-xs text-gray-400">${pin.label}</div>
-                        </div>
-                        <div class="text-lg ${isActive ? 'text-green-400' : 'text-gray-600'}">${isActive ? '●' : '○'}</div>
-                    </div>
-                `;
-                // Allow toggling inputs when simulation is running
-                pinDiv.onclick = () => {
-                    if (isSimRunning) {
-                        plcSimulation.toggleInput(pin.address);
-                        renderPins();
-                    }
-                };
-                inputPinsContainer.appendChild(pinDiv);
-            });
-            
-            // Render output pins - display state during simulation
-            outputPinsContainer.innerHTML = '';
-            outputPins.forEach(pin => {
-                const pinDiv = document.createElement('div');
-                const isActive = plcSimulation && plcSimulation.getPinState(pin.address);
-                pinDiv.className = `pin-item ${isActive ? 'output-active' : ''} cursor-default`;
-                pinDiv.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <div class="text-xs font-semibold text-amber-300">${pin.address}</div>
-                            <div class="text-xs text-gray-400">${pin.label}</div>
-                        </div>
-                        <div class="text-lg ${isActive ? 'text-amber-400' : 'text-gray-600'}">${isActive ? '●' : '○'}</div>
-                    </div>
-                `;
-                outputPinsContainer.appendChild(pinDiv);
-            });
-        }
-
-        function getGridCoords(event) {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            const col = Math.floor((x - RAIL_WIDTH) / CELL_WIDTH);
-            const row = Math.floor(y / CELL_HEIGHT);
-            return (col >= 0 && col < COLS && row >= 0 && row < ROWS) ? { row, col } : null;
-        }
-
-        function placeComponent(event) {
-            const coords = getGridCoords(event);
-            if (!coords) return;
-            const { row, col } = coords;
-            const existingCell = grid[row][col];
-
-            if (currentTool === 'CLEAR') {
-                // If cell has BOTH, ask which one to clear or clear all
-                if (existingCell && existingCell.type === 'BOTH') {
-                    // For now, just clear everything
-                    grid[row][col] = null;
-                } else {
-                    grid[row][col] = null;
-                }
-                adjustGridSize();
-            } else if (currentTool === 'VLINE') {
-                // Allow VLINE to coexist with HLINE
-                if (existingCell && existingCell.type === 'HLINE') {
-                    grid[row][col] = { type: 'BOTH', address: null, label: '', hasVLine: true, hasHLine: true };
-                } else if (existingCell && existingCell.type === 'BOTH') {
-                    // Already has both, do nothing
-                } else {
-                    grid[row][col] = { type: 'VLINE', address: null, label: '' };
-                }
-            } else if (currentTool === 'HLINE') {
-                // Allow HLINE to coexist with VLINE
-                if (existingCell && existingCell.type === 'VLINE') {
-                    grid[row][col] = { type: 'BOTH', address: null, label: '', hasVLine: true, hasHLine: true };
-                } else if (existingCell && existingCell.type === 'BOTH') {
-                    // Already has both, do nothing
-                } else {
-                    grid[row][col] = { type: 'HLINE', address: null, label: '' };
-                }
-                adjustGridSize();
-            } else if (currentTool) {
-                // Tool selected - place component with default address
-                grid[row][col] = { type: currentTool, address: `${currentTool === 'OUT' ? 'O' : 'I'}:1/${col}`, label: currentTool };
-            }
-            drawLadder();
-        }
-        
-        function handleDoubleClick(event) {
-            const coords = getGridCoords(event);
-            if (!coords) return;
-            const { row, col } = coords;
-            const cell = grid[row][col];
-            
-            if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
-                // Show dropdown to assign pin
-                showPinDropdown(row, col, cell, event);
-            }
-        }
-        
-        function showPinDropdown(row, col, cell, event) {
-            const isOutput = cell.type === 'OUT';
-            // For outputs, only show output pins
-            // For NO/NC contacts, show both input and output pins (for feedback)
-            const allPins = isOutput ? outputPins : [...inputPins, ...outputPins];
-            
-            const dropdown = document.createElement('select');
-            dropdown.className = 'absolute bg-gray-700 text-white p-2 rounded shadow-lg';
-            dropdown.style.left = event.clientX + 'px';
-            dropdown.style.top = event.clientY + 'px';
-            dropdown.style.zIndex = '1000';
-            
-            // Add default option
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = '-- Select Pin --';
-            dropdown.appendChild(defaultOption);
-            
-            // Add input pins section for contacts
-            if (!isOutput && inputPins.length > 0) {
-                const inputGroup = document.createElement('optgroup');
-                inputGroup.label = 'INPUTS';
-                inputPins.forEach(pin => {
-                    const option = document.createElement('option');
-                    option.value = JSON.stringify(pin);
-                    option.textContent = `${pin.address} - ${pin.label}`;
-                    inputGroup.appendChild(option);
-                });
-                dropdown.appendChild(inputGroup);
-            }
-            
-            // Add output pins section
-            if (!isOutput && outputPins.length > 0) {
-                const outputGroup = document.createElement('optgroup');
-                outputGroup.label = 'OUTPUTS (Feedback)';
-                outputPins.forEach(pin => {
-                    const option = document.createElement('option');
-                    option.value = JSON.stringify(pin);
-                    option.textContent = `${pin.address} - ${pin.label}`;
-                    outputGroup.appendChild(option);
-                });
-                dropdown.appendChild(outputGroup);
-            }
-            
-            // For output coils, just add output pins directly
-            if (isOutput) {
-                outputPins.forEach(pin => {
-                    const option = document.createElement('option');
-                    option.value = JSON.stringify(pin);
-                    option.textContent = `${pin.address} - ${pin.label}`;
-                    if (cell.address === pin.address) {
-                        option.selected = true;
-                    }
-                    dropdown.appendChild(option);
-                });
-            }
-            
-            dropdown.onchange = (e) => {
-                const selectedValue = e.target.value;
-                if (selectedValue) {
-                    const selectedPin = JSON.parse(selectedValue);
-                    if (selectedPin) {
-                        grid[row][col].address = selectedPin.address;
-                        grid[row][col].label = selectedPin.label;
-                        drawLadder();
-                    }
-                }
-                document.body.removeChild(dropdown);
-            };
-            
-            dropdown.onblur = () => {
-                if (document.body.contains(dropdown)) {
-                    document.body.removeChild(dropdown);
-                }
-            };
-            
-            document.body.appendChild(dropdown);
-            dropdown.focus();
-        }
-        
-
-
-        function drawLadder() {
-            const w = canvas.width;
-            CELL_WIDTH = (w - 2 * RAIL_WIDTH) / COLS;
-            // Keep CELL_HEIGHT fixed, adjust canvas height based on ROWS
-            const newHeight = ROWS * CELL_HEIGHT;
-            if (canvas.height !== newHeight) {
-                canvas.height = newHeight;
-            }
-            const h = canvas.height;
-
-            ctx.clearRect(0, 0, w, h);
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            // Rails
-            ctx.strokeStyle = '#9CA3AF';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(RAIL_WIDTH, 0);
-            ctx.lineTo(RAIL_WIDTH, h);
-            ctx.moveTo(w - RAIL_WIDTH, 0);
-            ctx.lineTo(w - RAIL_WIDTH, h);
-            ctx.stroke();
-
-            // Grid
-            ctx.strokeStyle = GRID_COLOR;
-            ctx.lineWidth = 1;
-            for (let col = 0; col <= COLS; col++) {
-                const x = RAIL_WIDTH + col * CELL_WIDTH;
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, h);
-                ctx.stroke();
-            }
-            for (let row = 0; row <= ROWS; row++) {
-                const y = row * CELL_HEIGHT;
-                ctx.beginPath();
-                ctx.moveTo(RAIL_WIDTH, y);
-                ctx.lineTo(w - RAIL_WIDTH, y);
-                ctx.stroke();
-            }
-
-            // Draw horizontal wires for each row (will be broken by components)
-            ctx.lineWidth = 2;
-            
-            for (let row = 0; row < ROWS; row++) {
-                const y = (row + 0.5) * CELL_HEIGHT;
-                
-                // Draw wire segments between components
-                for (let col = 0; col < COLS; col++) {
-                    const cell = grid[row][col];
-                    const x = RAIL_WIDTH + col * CELL_WIDTH;
-                    const xNext = RAIL_WIDTH + (col + 1) * CELL_WIDTH;
-                    
-                    // Check if this cell or adjacent cells need wire
-                    const nextCell = col < COLS - 1 ? grid[row][col + 1] : null;
-                    
-                    // Check if wire is energized (during simulation)
-                    const isEnergized = plcSimulation && plcSimulation.isRunning && 
-                                       plcSimulation.isWireEnergized(row, col);
-                    
-                    // Set wire color based on energized state
-                    ctx.strokeStyle = isEnergized ? '#FCD34D' : WIRE_COLOR;
-                    if (isEnergized) {
-                        ctx.lineWidth = 3;
-                        ctx.shadowColor = '#FCD34D';
-                        ctx.shadowBlur = 10;
-                    } else {
-                        ctx.lineWidth = 2;
-                        ctx.shadowBlur = 0;
-                    }
-                    
-                    // Determine if we should draw wire in this segment
-                    let shouldDrawWire = false;
-                    
-                    if (row === 0) {
-                        // Main rung always has wire unless blocked by component
-                        shouldDrawWire = true;
-                    } else if (cell && (cell.type === 'HLINE' || cell.type === 'BOTH')) {
-                        // HLINE or BOTH creates wire
-                        shouldDrawWire = true;
-                    } else if (nextCell && (nextCell.type === 'HLINE' || nextCell.type === 'BOTH')) {
-                        // Next cell is HLINE or BOTH, draw wire to connect
-                        shouldDrawWire = true;
-                    } else if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
-                        // Component in branch needs connection wires on sides
-                        shouldDrawWire = true;
-                    } else if (nextCell && (nextCell.type === 'NO' || nextCell.type === 'NC' || nextCell.type === 'OUT')) {
-                        // Next component needs connection wire
-                        shouldDrawWire = true;
-                    }
-                    
-                    if (shouldDrawWire) {
-                        if (!cell || cell.type === 'HLINE' || cell.type === 'VLINE' || cell.type === 'BOTH') {
-                            // Draw full wire segment if no component, HLINE, VLINE, or BOTH
-                            ctx.beginPath();
-                            ctx.moveTo(x, y);
-                            ctx.lineTo(xNext, y);
-                            ctx.stroke();
-                        } else if (cell && (cell.type === 'NO' || cell.type === 'NC' || cell.type === 'OUT')) {
-                            // Draw wire segments on both sides of component
-                            const xCenter = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
-                            const componentRadius = 20; // Space around component
-                            
-                            // Left wire segment (extends to edge of cell)
-                            ctx.beginPath();
-                            ctx.moveTo(x, y);
-                            ctx.lineTo(xCenter - componentRadius, y);
-                            ctx.stroke();
-                            
-                            // Right wire segment (extends to edge of cell)
-                            ctx.beginPath();
-                            ctx.moveTo(xCenter + componentRadius, y);
-                            ctx.lineTo(xNext, y);
-                            ctx.stroke();
-                        }
-                    }
-                }
-            }
-            
-            // Reset shadow
-            ctx.shadowBlur = 0;
-
-            // Components
-            for (let row = 0; row < ROWS; row++) {
-                for (let col = 0; col < COLS; col++) {
-                    const cell = grid[row][col];
-                    if (cell && cell.type) {
-                        const x = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
-                        const y = (row + 0.5) * CELL_HEIGHT;
-                        
-                        const itemDef = LadderItems[cell.type];
-                        if (itemDef && itemDef.draw) {
-                            // Use the item's draw function - pass row, col for simulation state
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            itemDef.draw(ctx, x, y, row, col, cell);
-                            
-                            // Draw labels if the item has them
-                            if (itemDef.drawLabels) {
-                                itemDef.drawLabels(ctx, x, y, cell);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Legacy drawing code removed - now using items.js
-            /*
-            // Old code kept for reference - can be deleted
-            if (cell.type === 'VLINE') {
-                // Now handled by items.js
-            } else if (cell.type === 'HLINE') {
-                // Already drawn in wire section above
-            } else if (cell.type === 'BOTH') {
-                // Now handled by items.js
-            } else {
-                // Now handled by items.js through drawLabels
-            }
-            */
-
-            // Labels
-            ctx.fillStyle = '#9CA3AF';
-            ctx.font = '10px Inter';
-            for (let col = 0; col < COLS; col++) {
-                const x = RAIL_WIDTH + (col + 0.5) * CELL_WIDTH;
-                ctx.fillText(col + 1, x, h - 10);
-            }
-            // Single rung label
-            const rungLabelY = (1) * CELL_HEIGHT;
-            ctx.fillText('Rung 1', 15, rungLabelY);
-        }
-
-        // Simulation control handlers
-        function setupSimulationControls() {
-            const startStopBtn = document.getElementById('startStopBtn');
-            const resetBtn = document.getElementById('resetBtn');
-            
-            // Initialize simulation with pins
-            plcSimulation.initializePins(inputPins, outputPins);
-            
-            // Start/Stop button toggle
-            startStopBtn.onclick = () => {
-                if (plcSimulation.isRunning) {
-                    // Stop simulation
-                    plcSimulation.stop();
-                    startStopBtn.textContent = '▶ Start';
-                    startStopBtn.className = 'sim-control-btn start px-6 py-2';
-                } else {
-                    // Start simulation
-                    plcSimulation.start();
-                    startStopBtn.textContent = '⏹ Stop';
-                    startStopBtn.className = 'sim-control-btn stop px-6 py-2';
-                }
-                renderPins();
-                drawLadder();
-            };
-            
-            // Reset button
-            resetBtn.onclick = () => {
-                plcSimulation.reset();
-                startStopBtn.textContent = '▶ Start';
-                startStopBtn.className = 'sim-control-btn start px-6 py-2';
-                renderPins();
-                drawLadder();
-            };
-        }
-
-        window.onload = async function() {
-            renderToolbox();
-            await loadPins(); // Load pins first, then render
-            setupSimulationControls(); // Setup simulation after pins are loaded
-            drawLadder();
-            canvas.addEventListener('click', placeComponent);
-            canvas.addEventListener('dblclick', handleDoubleClick);
-            window.addEventListener('resize', drawLadder);
-            
-            // ESC key handler to deactivate tool
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    currentTool = null;
-                    renderToolbox();
-                }
-            });
-        };
-    </script>
+    <script src="ladder-data.js"></script>
+    <script src="ladder-renderer.js"></script>
+    <script src="ladder-simulator.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
